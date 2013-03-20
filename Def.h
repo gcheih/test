@@ -2,21 +2,33 @@
 #define __DEF_H
 
 struct Point 
-{
+{//Point coordinate
 	float x, y, z;
 };
 
 struct Vector 
-{
+{ //向量
 	float x, y, z;
 
-    Vector& operator += (const Vector &v2){
+    Vector& operator += (const Vector &v2){//這三小
 	    this->x += v2.x;
         this->y += v2.y;
         this->z += v2.z;
 	    return *this;
     }
 };
+
+inline Point operator + (const Point&p, const Point &v)
+{
+	Point p2 = {p.x + v.x, p.y + v.y, p.z + v.z };
+	return p2;
+}
+
+inline Point operator * (const int a, const Point &v)
+{
+	Point p2 = {a*v.x, a* v.y, a*v.z };
+	return p2;
+}
 
 inline Point operator + (const Point&p, const Vector &v)
 {
@@ -59,12 +71,12 @@ inline float operator * (const Vector&v1, const Vector &v2 )
 	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
-inline float length(Vector v)
+inline float length(Vector v) //向量長度
 {
    return sqrt(v*v);
 }
 
-inline void normalize(Vector v)
+inline void normalize(Vector v) //正交化
 {
    float length = sqrt(v*v);
    v.x = v.x/length;

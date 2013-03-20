@@ -1,16 +1,16 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
-#include "cpu_bitmap.h"
+#include "imageIO.h"
 #include "Def.h"
 
-#define DIM 600
-#define sphere_num 5
+#define DIM 768
+#define sphere_num 4
 #define reflectcof 0.75
 
 Sphere s[sphere_num];
-Light l;
-Point eye_pos = {375, 500, 1000};
+Light l,l_2;
+Point eye_pos = {375, 300, 1000};
 
 bool sphere_intersect(Point str, Vector dir, int sphereno,float &t){
  //Compute A, B and C coefficients
@@ -65,8 +65,11 @@ bool sphere_intersect(Point str, Vector dir, int sphereno,float &t){
    return true;
 }
 
-void display(unsigned char *ptr){
-
+void display(){
+	 ColorImage image;
+    //int x,y;
+    Pixel Pixel={0,0,0};
+	image.init(DIM,DIM); // Initialize the image
 	for (int i=0; i < DIM; ++i){
 		for (int j=0; j < DIM; ++j){
 			int offset = i + j * DIM;
@@ -74,10 +77,11 @@ void display(unsigned char *ptr){
 			float coef = 1.0;
 			
 			Color color = {0.15, 0.15, 0.15};		//background ambient
+			//Color shadow_color ={0,0,0};
 			Point p = {i, j, 0};
 			Ray r;
 			r.start = eye_pos;
-			r.dir = p - eye_pos;
+			r.dir = p - eye_pos; //ray的向量
 			normalize(r.dir);
 			
 			int startSphere = -1;
@@ -101,10 +105,12 @@ void display(unsigned char *ptr){
 
 				// Intersection Exsist 
 				if (i_sphere >= 0){
-					Ray shadowRay;
+					Ray shadowRay,H;
 					shadowRay.start = r.start + tTable[i_sphere]*r.dir;
+					H.start=0.5*(r.start+l.pos);
+					H.dir=H.start-shadowRay.start;
 					shadowRay.dir = l.pos - shadowRay.start;
-					normalize(shadowRay.dir);
+					normalize(shadowRay.dir);normalize(H.dir);
 					Vector norm = shadowRay.start - s[i_sphere].pos;
 					normalize(norm);
 				
@@ -115,6 +121,7 @@ void display(unsigned char *ptr){
 						if (k!=startSphere && k!=i_sphere && sphere_intersect(shadowRay.start,shadowRay.dir,k,u) ){
 							inShadow = true;
 							color = coef * color * s[i_sphere].color * l.color;
+							//color = 0.2*coef * color * shadow_color;
 							break;
 						}
 					}
@@ -122,9 +129,14 @@ void display(unsigned char *ptr){
 					if ( !inShadow ){
 						//float power = 1 - (sqrt( pow(p.x-s[i_sphere].pos.x,2)+pow(p.y-s[i_sphere].pos.y,2) )/s[i_sphere].radius);
 						float power = (shadowRay.dir * norm) / (length(shadowRay.dir) * length(norm)) ;
+						float specular_power =(H.dir * norm) / (length(H.dir) * length(norm)) ;
 						if(power <0)
 							power = 0;
-						color += coef * power * s[i_sphere].color * l.color;
+						/*if(specular_power <0)
+							specular_power = 0;*/
+						color += coef *pow(power,1) * s[i_sphere].color * l.color;
+						color += pow(specular_power,10) * s[i_sphere].color * l.color;
+						//color += coef * power *  l.color;
 					}
 					
 					// reflected light 
@@ -134,7 +146,8 @@ void display(unsigned char *ptr){
 					r.start = shadowRay.start;
 					r.dir = r.dir - cosn*norm;
 					normalize(r.dir);
-
+					coef=coef*0.3;
+					
 				}
 				else{
 					break;
@@ -142,38 +155,47 @@ void display(unsigned char *ptr){
 				++level;
 			} while( level<2 );
 
-			ptr[offset*4 + 0] = (int)(color.red * 255);
-			ptr[offset*4 + 1] = (int)(color.green * 255);
-			ptr[offset*4 + 2] = (int)(color.blue * 255);
-			ptr[offset*4 + 3] = 255;
+			Pixel.R =(int) (color.red * 255);
+           Pixel.G = (int) (color.green * 255);
+           Pixel.B = (int)(color.blue *  255);
+		   image.writePixel(i,j,Pixel); 
 		}
 	}
+	image.outputPPM("Result.ppm");
 }
 
 int main(int argc, char **argv)
 {
-	Point lpos = {500, 300, 300};
+	
+	Point lpos = {500,300, 250};
+	
 	l.pos = lpos;
+	
 	Color lcol = {1.0,1.0,1.0};
 	l.color = lcol;
-
-	Point spos[sphere_num] = { {380,340,-100},{480,200,-10},{200,300,-35},{350,500,-100},{130,150,-130} };
-	float srad[sphere_num] = {60,60,50,100,50};
-	Color sphere_rgb[sphere_num] = { {0.5,0,0},{0,0,0.6},{0,0.5,0},{0.6,0,0.4},{0,0.5,0.6} };
-
+	
+	/*
+	Point spos[sphere_num] = { {380,340,-100},{480,200,-10},{200,300,-35},{350,500,-100},{130,150,-130} };//球的位置
+	float srad[sphere_num] = {60,60,50,100,50};//球的半徑
+	Color sphere_rgb[sphere_num] = { {0.5,0,0},{0,0,0.6},{0,0.5,0},{0.6,0,0.4},{0,0.5,0.6} };//球的顏色
+	*/
+	Point spos[sphere_num] = { {200,300,80},{200,300,300},{300,200,330},{300,200,0} };//球的位置
+	float srad[sphere_num] = {60,20,20,20};//球的半徑
+	Color sphere_rgb[sphere_num] = { {0.5,0,0},{0,0,0.6},{0,0.5,0.6},{0.5,0.5,0} };//球的顏色
 	for(int i=0; i<sphere_num; ++i){
 		s[i].pos = spos[i];
 		s[i].radius = srad[i];
 		s[i].color = sphere_rgb[i];
 	}
 
-	CPUBitmap bitmap( DIM, DIM);
-	unsigned char *ptr = bitmap.get_ptr();
+	
+	
 	clock_t start, end;
 	start = clock();
-	display(ptr);
+	display();
+	
 	end = clock();
 	printf("Time Elapsed : %lf Seconds.\n",double(end - start)/CLOCKS_PER_SEC);
-	bitmap.display_and_exit();
+	
 	return 0;
 }
